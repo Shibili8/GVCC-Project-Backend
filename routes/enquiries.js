@@ -1,77 +1,74 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const { connect } = require('../db/db');
-
+const { connect } = require("../db/db");
 
 const EMAIL_RE = /^\S+@\S+\.\S+$/;
 
 function validateEnquiry(body) {
   const errors = [];
-  if (!body.name || !body.name.trim()) errors.push('name is required');
-  if (!body.email || !EMAIL_RE.test(body.email)) errors.push('valid email is required');
-  if (!body.message || !body.message.trim()) errors.push('message is required');
-  if (body.product_id !== undefined && body.product_id !== null) {
-    const id = parseInt(body.product_id, 10);
-    if (Number.isNaN(id) || id < 1) errors.push('product_id must be a positive integer');
-  }
+  if (!body.name) errors.push("name is required");
+  if (!body.email || !EMAIL_RE.test(body.email)) errors.push("valid email is required");
+  if (!body.message) errors.push("message is required");
   return errors;
 }
 
-// POST /api/enquiries
-router.post('/', async (req, res, next) => {
-  try {
-    const db = connect();
-    const { product_id = null, name, email, phone = null, message } = req.body;
+router.post("/", (req, res) => {
+  const db = connect();
 
-    const errors = validateEnquiry({ product_id, name, email, message });
-    if (errors.length) return res.status(400).json({ errors });
+  const { product_id, name, email, phone, message } = req.body;
 
-    if (product_id) {
-      const product = await db.getAsync('SELECT id FROM products WHERE id = ?', [product_id]);
-      if (!product) return res.status(400).json({ error: 'Referenced product does not exist' });
-    }
+  const errors = validateEnquiry(req.body);
+  if (errors.length) return res.status(400).json({ errors });
 
-    const stmt = await db.runAsync(
-      `INSERT INTO enquiries (product_id, name, email, phone, message) VALUES (?, ?, ?, ?, ?)`,
-      [product_id, name.trim(), email.trim(), phone ? phone.trim() : null, message.trim()]
-    );
-
-    const inserted = await db.getAsync('SELECT * FROM enquiries WHERE id = last_insert_rowid()');
-
-    res.status(201).json({ message: 'Enquiry submitted', enquiry: inserted });
-  } catch (err) {
-    next(err);
+  // Check product exists
+  if (product_id) {
+    const exists = db.prepare("SELECT id FROM products WHERE id = ?").get(product_id);
+    if (!exists) return res.status(400).json({ error: "Product does not exist" });
   }
+
+  const stmt = db.prepare(
+    `INSERT INTO enquiries (product_id, name, email, phone, message)
+     VALUES (@product_id, @name, @email, @phone, @message)`
+  );
+
+  stmt.run({
+    product_id: product_id || null,
+    name,
+    email,
+    phone: phone || null,
+    message,
+  });
+
+  const inserted = db.prepare(
+    "SELECT * FROM enquiries ORDER BY id DESC LIMIT 1"
+  ).get();
+
+  res.status(201).json({ message: "Enquiry submitted", enquiry: inserted });
 });
 
-// GET /api/enquiries
-// Returns all enquiries (admin). Supports optional ?product_id
-router.get('/', async (req, res, next) => {
-  try {
-    const db = connect();
-    const productId = req.query.product_id ? parseInt(req.query.product_id, 10) : null;
-    let rows;
-    if (productId && !Number.isNaN(productId)) {
-      rows = await db.allAsync(
-        `SELECT e.*, p.name as product_name
-         FROM enquiries e
-         LEFT JOIN products p ON e.product_id = p.id
-         WHERE e.product_id = ?
-         ORDER BY e.created_at DESC`,
-        [productId]
-      );
-    } else {
-      rows = await db.allAsync(
-        `SELECT e.*, p.name as product_name
-         FROM enquiries e
-         LEFT JOIN products p ON e.product_id = p.id
-         ORDER BY e.created_at DESC`
-      );
-    }
-    res.json({ total: rows.length, enquiries: rows });
-  } catch (err) {
-    next(err);
+router.get("/", (req, res) => {
+  const db = connect();
+
+  const product_id = req.query.product_id;
+
+  let sql = `
+    SELECT e.*, p.name AS product_name
+    FROM enquiries e
+    LEFT JOIN products p ON e.product_id = p.id
+  `;
+
+  const params = {};
+
+  if (product_id) {
+    sql += " WHERE e.product_id = @product_id";
+    params.product_id = product_id;
   }
+
+  sql += " ORDER BY e.created_at DESC";
+
+  const enquiries = db.prepare(sql).all(params);
+
+  res.json({ total: enquiries.length, enquiries });
 });
 
 module.exports = router;

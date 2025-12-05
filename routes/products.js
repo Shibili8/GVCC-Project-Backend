@@ -1,90 +1,57 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const { connect } = require('../db/db');
+const { connect } = require("../db/db");
 
-function buildProductsQuery({ search, category, limit, offset }) {
-  let base = 'SELECT id, name, category, short_desc, price, image_url, created_at FROM products';
-  const clauses = [];
-  const params = [];
+router.get("/", (req, res) => {
+  const db = connect();
+
+  const search = req.query.search?.trim() || "";
+  const category = req.query.category?.trim() || "";
+  const page = Number(req.query.page) || 1;
+  const limit = Number(req.query.limit) || 10;
+  const offset = (page - 1) * limit;
+
+  let sql = `SELECT * FROM products WHERE 1=1`;
+  let countSql = `SELECT COUNT(*) as count FROM products WHERE 1=1`;
+
+  const params = {};
+  const countParams = {};
 
   if (search) {
-    clauses.push('(name LIKE ? OR short_desc LIKE ? OR long_desc LIKE ?)');
-    const q = `%${search}%`;
-    params.push(q, q, q);
+    sql += ` AND (name LIKE @q OR short_desc LIKE @q OR long_desc LIKE @q)`;
+    countSql += ` AND (name LIKE @q OR short_desc LIKE @q OR long_desc LIKE @q)`;
+    params.q = `%${search}%`;
+    countParams.q = `%${search}%`;
   }
+
   if (category) {
-    clauses.push('category = ?');
-    params.push(category);
+    sql += ` AND category = @category`;
+    countSql += ` AND category = @category`;
+    params.category = category;
+    countParams.category = category;
   }
 
-  if (clauses.length) base += ' WHERE ' + clauses.join(' AND ');
-  base += ' ORDER BY created_at DESC';
-  base += ' LIMIT ? OFFSET ?';
-  params.push(limit, offset);
+  sql += ` ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`;
 
-  return { sql: base, params };
-}
+  const total = db.prepare(countSql).get(countParams).count;
+  const products = db.prepare(sql).all(params);
 
-// GET /api/products
-router.get('/', async (req, res, next) => {
-  try {
-    const db = connect();
-    const search = (req.query.search || '').trim();
-    const category = (req.query.category || '').trim();
-    const page = Math.max(parseInt(req.query.page || '1', 10), 1);
-    const limit = Math.max(parseInt(req.query.limit || '10', 10), 1);
-    const offset = (page - 1) * limit;
-
-    const { sql, params } = buildProductsQuery({ search, category, limit, offset });
-
-    const products = await db.allAsync(sql, params);
-
-    let countSql = 'SELECT COUNT(*) as count FROM products';
-    const whereClauses = [];
-    const countParams = [];
-    if (search) {
-      whereClauses.push('(name LIKE ? OR short_desc LIKE ? OR long_desc LIKE ?)');
-      const q = `%${search}%`;
-      countParams.push(q, q, q);
-    }
-    if (category) {
-      whereClauses.push('category = ?');
-      countParams.push(category);
-    }
-    if (whereClauses.length) countSql += ' WHERE ' + whereClauses.join(' AND ');
-    const row = await db.getAsync(countSql, countParams);
-    const total = row ? row.count : 0;
-
-    res.json({
-      page,
-      limit,
-      total,
-      products
-    });
-  } catch (err) {
-    next(err);
-  }
+  res.json({ page, limit, total, products });
 });
 
-// GET /api/products/:id
-router.get('/:id', async (req, res, next) => {
-  try {
-    const db = connect();
-    const id = parseInt(req.params.id, 10);
-    if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid product ID' });
+router.get("/:id", (req, res) => {
+  const db = connect();
+  const id = Number(req.params.id);
 
-    const product = await db.getAsync(
-      `SELECT id, name, category, short_desc, long_desc, price, image_url, created_at
-       FROM products WHERE id = ?`,
-      [id]
-    );
+  if (!id) return res.status(400).json({ error: "Invalid product ID" });
 
-    if (!product) return res.status(404).json({ error: 'Product not found' });
+  const product = db
+    .prepare("SELECT * FROM products WHERE id = ?")
+    .get(id);
 
-    res.json({ product });
-  } catch (err) {
-    next(err);
-  }
+  if (!product) return res.status(404).json({ error: "Product not found" });
+
+  res.json({ product });
 });
 
 module.exports = router;

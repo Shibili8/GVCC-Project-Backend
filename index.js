@@ -6,6 +6,8 @@ const dotenv = require('dotenv');
 
 const productsRouter = require('./routes/products');
 const enquiriesRouter = require('./routes/enquiries');
+const adminRouter = require("./routes/admin");
+
 const { connect } = require('./db/db');
 dotenv.config()
 const app = express();
@@ -27,6 +29,8 @@ connect();
 // API routes
 app.use('/api/products', productsRouter);
 app.use('/api/enquiries', enquiriesRouter);
+app.use("/api/admin", adminRouter);
+
 
 app.get('/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
 

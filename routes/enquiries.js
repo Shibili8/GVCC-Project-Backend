@@ -20,7 +20,6 @@ router.post("/", (req, res) => {
   const errors = validateEnquiry(req.body);
   if (errors.length) return res.status(400).json({ errors });
 
-  // Check product exists
   if (product_id) {
     const exists = db.prepare("SELECT id FROM products WHERE id = ?").get(product_id);
     if (!exists) return res.status(400).json({ error: "Product does not exist" });

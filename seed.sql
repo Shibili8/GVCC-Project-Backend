@@ -2,7 +2,7 @@ INSERT INTO products (name, category, short_desc, long_desc, price, image_url) V
 
 ('Wireless Headphones', 'Electronics', 'High-quality audio', 'Over-ear wireless headphones with noise cancellation and 24h battery.', 199.99, 'https://images.unsplash.com/photo-1580894732444-8ecdedfb89e6'),
 ('Bluetooth Speaker', 'Electronics', 'Portable speaker', 'Water-resistant portable Bluetooth speaker with deep bass and 360° sound.', 79.50, 'https://images.unsplash.com/photo'),
-('Smartwatch Series 5', 'Electronics', 'Fitness + notifications', 'Smartwatch with heart rate monitor, GPS, and message notifications.', 149.00, 'https://images.unsplash.com/photo-1516574187841-cb9cc2ca948b'),
+('Smartwatch Series 5', 'Electronics', 'Fitness + notifications', 'Smartwatch with heart rate monitor, GPS, and message notifications.', 149.00, 'https://images.unsplash.com/photo'),
 ('Noise Cancelling Earbuds', 'Electronics', 'Lightweight earbuds', 'Premium earbuds with ANC, touch controls, and 30h battery life.', 89.99, 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df'),
 ('4K Action Camera', 'Electronics', 'Adventure camera', 'Waterproof 4K action camera with stabilizer and dual screen.', 119.00, 'https://images.unsplash.com/photo-1508896694512-1eade558679d'),
 

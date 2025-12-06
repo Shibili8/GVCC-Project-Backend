@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const { connect } = require("../db/db");
 
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "mysecureadmintoken123";
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "admin123";
 
 function authAdmin(req, res, next) {
   const token = req.headers["x-admin-token"];
